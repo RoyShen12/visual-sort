@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width,initial-scale=1.0">
+    <style>
+      body {
+        margin: 0;
+      }
+      canvas {
+        margin: 10px 0 0 0;
+        border: 1px solid #cac5c5;
+      }
+      button {
+        outline: none;
+      }
+      #app {
+        margin: 10px;
+      }
+      .top_row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+    </style>
+    <title>Visual Sort</title>
+    <script src="https://cdn.jsdelivr.net/npm/vue/dist/vue.js"></script>
+    <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/lodash@4.17.20/lodash.min.js"></script>
+    <link rel="stylesheet" href="https://unpkg.com/element-ui/lib/theme-chalk/index.css" />
+    <script src="https://unpkg.com/element-ui/lib/index.js"></script>
+  </head>
+
+  <body>
+    <div id="app">
+
+      <el-row class="top_row">
+        <el-col>
+          <span style="margin-right: 12px;">Sort Type:</span>
+          <el-select v-model="usingSort" size="small">
+            <el-option v-for="st in sortTypes" :value="st" :label="st" :key="st"/>
+          </el-select>
+        </el-col>
+
+        <el-col>
+          <span style="margin-right: 12px;">FPS:</span>
+          <el-select v-model="fps" size="small">
+            <el-option v-for="f in [3, 10, 30, 60, 90, 144, 200, 300, 500, 1000]" :value="f" :label="f" :key="f" />
+          </el-select>
+        </el-col>
+
+        <el-col>
+          <el-select v-model="length" size="small">
+            <el-option v-for="len in [50, 100, 200, 400, 800, 1200, 1600, 1900, 2000, 2500, 3400]" :value="len" :label="len" :key="len" />
+          </el-select>
+        </el-col>
+
+        <el-col>
+          <span style="margin-right: 12px;">Draw As:</span>
+          <el-switch
+            v-model="barOrPoint"
+            active-text="Bar"
+            inactive-text="Point">
+          </el-switch>
+        </el-col>
+
+        <el-col>
+          <el-button type="primary" @click="startSort">Start Sort</el-button>
+        </el-col>
+
+        <el-col>
+          <span>Steps: {{ humanSteps }}</span>
+        </el-col>
+      </el-row>
+
+      <canvas v-show="showCanvas" ref="cvs"></canvas>
+
+    </div>
+    <script type="text/javascript" src="./app.js"></script>
+  </body>
+</html>
