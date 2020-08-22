@@ -114,7 +114,7 @@ const app = new Vue({
       ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height)
 
       for (let i = 0; i < data.length; i++) {
-        const __h = data[i] * dpi
+        const __h = data[i]
 
         if (data[i + 1] !== undefined && data[i + 1] >= data[i]) {
           ctx.fillStyle = okColor
@@ -124,8 +124,8 @@ const app = new Vue({
         }
 
         this.barOrPoint ?
-          ctx.fillRect(i * __w, logicHeight - __h, __w, __h) :
-          ctx.fillRect(i * __w, logicHeight - __h, __w, __w)
+          ctx.fillRect(i * __w, height - __h, __w, __h) :
+          ctx.fillRect(i * __w, height - __h, __w, __w)
 
         // if (i % 3 === 0) ctx.strokeText(data[i], i * __w, 30)
       }
