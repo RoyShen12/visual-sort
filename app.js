@@ -29,7 +29,7 @@ let ctx = null
 let __w
 
 const dpi = window.devicePixelRatio
-const [height, width] = [Math.round(innerHeight * .8 / 100) * 100, Math.round(innerWidth / 100) * 100]
+const [height, width] = [Math.round(innerHeight * .8 / 100) * 100, Math.floor(innerWidth / 100) * 100]
 const [logicHeight, logicWidth] = [height * dpi, width * dpi]
 
 const okColor = 'rgba(103, 194, 58, 1)'
