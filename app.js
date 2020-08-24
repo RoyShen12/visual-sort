@@ -40,6 +40,9 @@ const app = new Vue({
   data: {
     showCanvas: false,
 
+    dataLengths: [50, 100, 200, 400, 800, 1200, 1600, 1900, 2000, 2500, 2700, 3400],
+    fpsRange: [3, 10, 30, 60, 90, 144, 200, 300, 500, 1000],
+
     sortTypes: [
       'quick',
       'bubble',
@@ -56,6 +59,7 @@ const app = new Vue({
     length: 400,
 
     steps: 0,
+    isRunning: false,
 
     barOrPoint: true
   },
@@ -69,7 +73,8 @@ const app = new Vue({
     }
   },
   methods: {
-    startSort() {
+    async startSort() {
+      this.isRunning = true
       this.steps = 0
       /**
        * @type {HTMLCanvasElement}
@@ -97,18 +102,23 @@ const app = new Vue({
 
       this.drawData(data)
 
-      const cb = async (justStepOnSwap) => {
-        if (!justStepOnSwap) this.drawData(data)
+      const cb = async () => {
+        this.drawData(data)
         this.steps++
-        return new Promise(r => setTimeout(() => r(), justStepOnSwap ? 0 : this.rendInterval))
+        return new Promise(r => setTimeout(() => r(), this.rendInterval))
       }
-      if (this.usingSort === 'quick') QuickSort(data, cb)
-      else if (this.usingSort === 'bubble') BubbleSort(data, cb)
-      else if (this.usingSort === 'bubble v2') BubbleSortV2(data, cb)
-      else if (this.usingSort === 'heap') HeapSort(data, cb)
-      else if (this.usingSort === 'merge') MergeSort(data, cb)
-      else if (this.usingSort === 'insert') InsertionSort(data, cb)
-      else if (this.usingSort === 'select') SelectionSort(data, cb)
+      const hcb = () => {
+        this.steps++
+      }
+      if (this.usingSort === 'quick') await QuickSort(data, cb, hcb)
+      else if (this.usingSort === 'bubble') await BubbleSort(data, cb, hcb)
+      else if (this.usingSort === 'bubble v2') await BubbleSortV2(data, cb, hcb)
+      else if (this.usingSort === 'heap') await HeapSort(data, cb, hcb)
+      else if (this.usingSort === 'merge') await MergeSort(data, cb, hcb)
+      else if (this.usingSort === 'insert') await InsertionSort(data, cb, hcb)
+      else if (this.usingSort === 'select') await SelectionSort(data, cb, hcb)
+
+      this.isRunning = false
     },
     drawData(data) {
       ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height)
@@ -116,7 +126,15 @@ const app = new Vue({
       for (let i = 0; i < data.length; i++) {
         const __h = data[i]
 
-        if (data[i + 1] !== undefined && data[i + 1] >= data[i]) {
+        if (data[i - 1] !== undefined) {
+          if (data[i - 1] <= data[i]) {
+            ctx.fillStyle = okColor
+          }
+          else {
+            ctx.fillStyle = nomalColor
+          }
+        }
+        else if (data[i] >= data[i + 1]) {
           ctx.fillStyle = okColor
         }
         else {
@@ -129,61 +147,94 @@ const app = new Vue({
 
         // if (i % 3 === 0) ctx.strokeText(data[i], i * __w, 30)
       }
+    },
+    next(arr, v) {
+      let i = arr.indexOf(this[v])
+      const len = arr.length
+      this[v] = arr[i === len - 1 ? 0 : (i + 1)]
     }
   },
   created() {},
   mounted() {},
   watch: {
-    length(v) {}
+    // length(v) {}
   }
 })
 
-async function QuickSort(arr, callBack) {
+/// Sort Functions
+/**
+ * @typedef {(arr: number[], callBack: () => Promise<void>, hardCallBack: () => void) => Promise<void>} SortFunction
+ */
+
+/**
+ * @type {SortFunction}
+ */
+async function QuickSort(arr, callBack, hardCallBack) {
   const left = 0, right = arr.length - 1
   const list = [[left, right]]
+
   while(list.length > 0) {
     const now = list.pop()
+
+    hardCallBack()
     if (now[0] >= now[1]) continue
+
     let i = now[0], j = now[1], flag = i
+
     while(i < j) {
       while(arr[j] >= arr[flag] && j > flag) {
-        j --
-        // await callBack(true)
+        j--
+        hardCallBack()
       }
+
+      hardCallBack()
       if (i >= j) break
+
       while(arr[i] <= arr[flag] && i < j) {
         i++
-        // await callBack(true)
+        hardCallBack()
       }
-      var temp = arr[flag]
+
+      const temp = arr[flag]
       arr[flag] = arr[j]
       arr[j] = arr[i]
       arr[i] = temp
       flag = i
       await callBack()
     }
+
+    hardCallBack()
     list.push([now[0], flag - 1])
     list.push([flag + 1, now[1]])
   }
 }
 
-async function BubbleSort(array, callBack) {
+/**
+ * @type {SortFunction}
+ */
+async function BubbleSort(array, callBack, hardCallBack) {
   let len = array.length
   for (let i = 0; i < len; i++) {
     for (let j = 0; j < len-i-1; j++) {
+      hardCallBack()
       if (array[j]> array[j+1]) {
         [array[j], array[j+1]] = [array[j+1], array[j]]
         await callBack()
-      }          
+      }
     }  
   } 
 }
 
-async function BubbleSortV2(array, callBack) {
-  let swapped;
+/**
+ * @type {SortFunction}
+ */
+async function BubbleSortV2(array, callBack, hardCallBack) {
+  let swapped
+
   for (let i = 0; i < array.length; i++) {
     swapped = true
     for (let j = 0; j < array.length - i - 1; j++) {
+      hardCallBack()
       if (array[j] > array[j+1]) {
         [array[j], array[j+1]] = [array[j+1], array[j]]
         await callBack()
@@ -196,9 +247,13 @@ async function BubbleSortV2(array, callBack) {
   }
 }
 
-async function HeapSort(arr, callBack) {
+/**
+ * @type {SortFunction}
+ */
+async function HeapSort(arr, callBack, hardCallBack) {
   let heapSize = arr.length
-  await buildHeap(arr, callBack)
+  await buildHeap(arr, callBack, hardCallBack)
+
   while(heapSize > 1) { 
     const temp = arr[0]
     arr[0] = arr[heapSize-1]
@@ -206,50 +261,65 @@ async function HeapSort(arr, callBack) {
     await callBack()
     heapSize--
     if (heapSize>1) {
-      await heapify(arr, heapSize, 0, callBack)
+      await heapify(arr, heapSize, 0, callBack, hardCallBack)
     }
   }
 }
 
-async function buildHeap(arr, callBack) {
+/**
+ * @type {SortFunction}
+ */
+async function buildHeap(arr, callBack, hardCallBack) {
   const heapSize = arr.length
+  hardCallBack()
   const firstHeapifyIndex = Math.floor(heapSize / 2 - 1)
   for (let i = firstHeapifyIndex; i >= 0; i--) {
-    await heapify(arr, heapSize, i, callBack)
+    await heapify(arr, heapSize, i, callBack, hardCallBack)
   }
 }
 
-async function heapify(arr, heapSize, i, callBack) {
+async function heapify(arr, heapSize, i, callBack, hardCallBack) {
   const leftIndex = i * 2 + 1
   const rightIndex = i * 2 + 2
   let biggestValueIndex = i
+  hardCallBack()
+
   if (leftIndex < heapSize && arr[leftIndex] > arr[biggestValueIndex]) {
     biggestValueIndex = leftIndex
+    hardCallBack()
   }
   if (rightIndex < heapSize && arr[rightIndex] > arr[biggestValueIndex]) {
     biggestValueIndex = rightIndex
+    hardCallBack()
   }
+
   if (biggestValueIndex !== i) {
     const temp = arr[i]
     arr[i] = arr[biggestValueIndex]
     arr[biggestValueIndex] = temp
     await callBack()
-    await heapify(arr, heapSize, biggestValueIndex, callBack)
+    await heapify(arr, heapSize, biggestValueIndex, callBack, hardCallBack)
   }
 }
 
-async function MergeSort(arr, callBack) {
+/**
+ * @type {SortFunction}
+ */
+async function MergeSort(arr, callBack, hardCallBack) {
   const len = arr.length
   let left_s, left_e, right_s, right_e
   let left_list = null
+
   for (let i = 1; i < len; i *= 2) {
     let next = 0
     for (left_s = 0; left_s < len; left_s = right_e) {
       next = left_s
       left_e = right_s = left_s + i
       right_e = right_s + i
+      hardCallBack()
       if(right_e > len) {
         right_e = len
+        hardCallBack()
       }
       left_list = arr.slice(left_s,left_e)
       let left_index = 0
@@ -268,34 +338,41 @@ async function MergeSort(arr, callBack) {
   }
 }
 
-async function InsertionSort(array, callBack) {
+/**
+ * @type {SortFunction}
+ */
+async function InsertionSort(array, callBack, hardCallBack) {
   let len = array.length
   for (let i = 0; i < len; i++) {
-      let temp = array[i]
-      let j = i - 1
-      while (j >= 0 && array[j] > temp) {
-          array[j+1] = array [j]
-          await callBack()
-          j--
-      }
-      array[j+1] = temp
+    let temp = array[i]
+    let j = i - 1
+    while (j >= 0 && array[j] > temp) {
+      array[j+1] = array [j]
       await callBack()
+      j--
+    }
+    array[j+1] = temp
+    await callBack()
   }
 }
 
-async function SelectionSort(array, callBack) {
+/**
+ * @type {SortFunction}
+ */
+async function SelectionSort(array, callBack, hardCallBack) {
   let len = array.length
   for (let i = 0; i < len - 1; i++) {
-    let  minIndex = i
-      for (let j = i + 1; j < len; j++) {
-        if (array[j] < array[minIndex]) {
-          minIndex = j
-          // await callBack(true)
-        }
+    let minIndex = i
+    hardCallBack()
+    for (let j = i + 1; j < len; j++) {
+      hardCallBack()
+      if (array[j] < array[minIndex]) {
+        minIndex = j
       }
-     if (minIndex != i) {
-        [array[minIndex], array[i]] = [array[i], array[minIndex]]
-        await callBack()
-     }
+    }
+    if (minIndex != i) {
+      [array[minIndex], array[i]] = [array[i], array[minIndex]]
+      await callBack()
+    }
   }
 }

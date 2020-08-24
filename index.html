@@ -23,6 +23,9 @@
         justify-content: space-between;
         align-items: center;
       }
+      .el-select-dropdown__wrap {
+        max-height: 800px !important;
+      }
     </style>
     <title>Visual Sort</title>
     <script src="https://cdn.jsdelivr.net/npm/vue/dist/vue.js"></script>
@@ -37,7 +40,7 @@
       <el-row class="top_row">
         <el-col :span="5">
           <span style="margin-right: 12px;">Sort Type:</span>
-          <el-select v-model="usingSort" size="small" style="width: 140px;">
+          <el-select v-model="usingSort" size="small" style="width: 140px;" :disabled="isRunning">
             <el-option v-for="st in sortTypes" :value="st" :label="st" :key="st"/>
           </el-select>
         </el-col>
@@ -45,15 +48,17 @@
         <el-col :span="5">
           <span style="margin-right: 12px;">FPS:</span>
           <el-select v-model="fps" size="small" style="width: 120px;">
-            <el-option v-for="f in [3, 10, 30, 60, 90, 144, 200, 300, 500, 1000]" :value="f" :label="f" :key="f" />
+            <el-option v-for="f in fpsRange" :value="f" :label="f" :key="f" />
           </el-select>
+          <el-button size="mini" @click="next(fpsRange, 'fps')">+</el-button>
         </el-col>
 
         <el-col :span="5">
           <span style="margin-right: 12px;">Data Length:</span>
-          <el-select v-model="length" size="small" style="width: 120px;">
-            <el-option v-for="len in [50, 100, 200, 400, 800, 1200, 1600, 1900, 2000, 2500, 3400]" :value="len" :label="len" :key="len" />
+          <el-select v-model="length" size="small" style="width: 120px;" :disabled="isRunning">
+            <el-option v-for="len in dataLengths" :value="len" :label="len" :key="len" />
           </el-select>
+          <el-button size="mini" @click="next(dataLengths, 'length')">+</el-button>
         </el-col>
 
         <el-col :span="5">
@@ -66,7 +71,7 @@
         </el-col>
 
         <el-col :span="2">
-          <el-button type="primary" @click="startSort">Start Sort</el-button>
+          <el-button type="primary" @click="startSort" :disabled="isRunning">Start Sort</el-button>
         </el-col>
 
         <el-col :span="2">
