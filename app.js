@@ -1,4 +1,7 @@
 function standardNormalDistribution() {
+  /**
+   * @type {number[]}
+   */
   const numberPool = []
   return function () {
     if (numberPool.length > 0) {
@@ -14,9 +17,30 @@ function standardNormalDistribution() {
   }()
 }
 
+/**
+ * @param {number} off
+ * @param {number} con
+ */
 function NormalDistribution(off, con) {
   const standard = standardNormalDistribution()
   return standard * con + off
+}
+
+/**
+ * @param {number[]} arr
+ */
+function isSorted(arr) {
+  return arr.every((v, i) => i === arr.length - 1 || v < arr[i + 1])
+}
+
+/**
+ * @param {number} min
+ * @param {number} max
+ */
+function getRandomInt(min, max) {
+  min = Math.ceil(min)
+  max = Math.floor(max)
+  return Math.floor(Math.random() * (max - min + 1)) + min //含最大值，最小值
 }
 
 const fmt = new Intl.NumberFormat().format
@@ -51,7 +75,8 @@ const app = new Vue({
       ['merge', MergeSort],
       ['insert', InsertionSort],
       ['select', SelectionSort],
-      ['shell', ShellSort]
+      ['shell', ShellSort],
+      ['monkey', MonkeySort]
     ],
     usingSort: 'quick',
 
@@ -94,7 +119,7 @@ const app = new Vue({
 
       this.showCanvas = true
 
-      const data = new Array(this.length).fill(1).map(() => _.random(0, height, false))
+      const data = new Uint16Array(new Array(this.length).fill(1).map(() => _.random(0, height, false)))
       // const data = new Array(this.length).fill(1).map(() => NormalDistribution(0, height / 2))
 
       __w = data.length < width ? Math.round(width / data.length) : width / data.length
@@ -103,23 +128,17 @@ const app = new Vue({
 
       this.drawData(data)
 
-      const cb = async () => {
-        this.drawData(data)
+      await this.sortTypes.find(st => st[0] === this.usingSort)[1](
+        data,
+        async () => {
+          this.drawData(data)
+          this.steps++
+          return new Promise(r => setTimeout(() => r(), this.rendInterval))
+        },
+        () => {
         this.steps++
-        return new Promise(r => setTimeout(() => r(), this.rendInterval))
-      }
-      const hcb = () => {
-        this.steps++
-      }
-
-      await this.sortTypes.find(st => st[0] === this.usingSort)[1](data, cb, hcb)
-      // if (this.usingSort === 'quick') await QuickSort(data, cb, hcb)
-      // else if (this.usingSort === 'bubble') await BubbleSort(data, cb, hcb)
-      // else if (this.usingSort === 'bubble v2') await BubbleSortV2(data, cb, hcb)
-      // else if (this.usingSort === 'heap') await HeapSort(data, cb, hcb)
-      // else if (this.usingSort === 'merge') await MergeSort(data, cb, hcb)
-      // else if (this.usingSort === 'insert') await InsertionSort(data, cb, hcb)
-      // else if (this.usingSort === 'select') await SelectionSort(data, cb, hcb)
+        }
+      )
 
       this.isRunning = false
     },
@@ -166,7 +185,7 @@ const app = new Vue({
 
 /// Sort Functions
 /**
- * @typedef {(arr: number[], callBack: () => Promise<void>, hardCallBack: () => void) => Promise<void>} SortFunction
+ * @typedef {(arr: Uint16Array, callBack: () => Promise<void>, hardCallBack: () => void) => Promise<void>} SortFunction
  */
 
 /**
@@ -176,7 +195,7 @@ async function QuickSort(arr, callBack, hardCallBack) {
   const left = 0, right = arr.length - 1
   const list = [[left, right]]
 
-  while(list.length > 0) {
+  while (list.length > 0) {
     const now = list.pop()
 
     hardCallBack()
@@ -400,3 +419,17 @@ async function ShellSort(arr, callBack, hardCallBack) {
   }
 }
 
+/**
+ * @type {SortFunction}
+ */
+async function MonkeySort(arr, callBack, hardCallBack) {
+  do {
+    for (let i = 0; i < arr.length - 1; i++) {
+      const rIndex = getRandomInt(i + 1, arr.length - 1)
+      const tmp = arr[i]
+      arr[i] = arr[rIndex]
+      arr[rIndex] = tmp
+      await callBack()
+    }
+  } while (!isSorted(arr))
+}
