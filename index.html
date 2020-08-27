@@ -41,7 +41,7 @@
         <el-col :span="5">
           <span style="margin-right: 12px;">Sort Type:</span>
           <el-select v-model="usingSort" size="small" style="width: 140px;" :disabled="isRunning">
-            <el-option v-for="st in sortTypes" :value="st" :label="st" :key="st"/>
+            <el-option v-for="st in sortTypes" :value="st[0]" :label="st[0]" :key="st[0]"/>
           </el-select>
         </el-col>
 

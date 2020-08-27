@@ -44,13 +44,14 @@ const app = new Vue({
     fpsRange: [3, 10, 30, 60, 90, 144, 200, 300, 500, 1000],
 
     sortTypes: [
-      'quick',
-      'bubble',
-      'bubble v2',
-      'heap',
-      'merge',
-      'insert',
-      'select'
+      ['quick', QuickSort],
+      ['bubble', BubbleSort],
+      ['bubble v2', BubbleSortV2],
+      ['heap', HeapSort],
+      ['merge', MergeSort],
+      ['insert', InsertionSort],
+      ['select', SelectionSort],
+      ['shell', ShellSort]
     ],
     usingSort: 'quick',
 
@@ -110,13 +111,15 @@ const app = new Vue({
       const hcb = () => {
         this.steps++
       }
-      if (this.usingSort === 'quick') await QuickSort(data, cb, hcb)
-      else if (this.usingSort === 'bubble') await BubbleSort(data, cb, hcb)
-      else if (this.usingSort === 'bubble v2') await BubbleSortV2(data, cb, hcb)
-      else if (this.usingSort === 'heap') await HeapSort(data, cb, hcb)
-      else if (this.usingSort === 'merge') await MergeSort(data, cb, hcb)
-      else if (this.usingSort === 'insert') await InsertionSort(data, cb, hcb)
-      else if (this.usingSort === 'select') await SelectionSort(data, cb, hcb)
+
+      await this.sortTypes.find(st => st[0] === this.usingSort)[1](data, cb, hcb)
+      // if (this.usingSort === 'quick') await QuickSort(data, cb, hcb)
+      // else if (this.usingSort === 'bubble') await BubbleSort(data, cb, hcb)
+      // else if (this.usingSort === 'bubble v2') await BubbleSortV2(data, cb, hcb)
+      // else if (this.usingSort === 'heap') await HeapSort(data, cb, hcb)
+      // else if (this.usingSort === 'merge') await MergeSort(data, cb, hcb)
+      // else if (this.usingSort === 'insert') await InsertionSort(data, cb, hcb)
+      // else if (this.usingSort === 'select') await SelectionSort(data, cb, hcb)
 
       this.isRunning = false
     },
@@ -376,3 +379,24 @@ async function SelectionSort(array, callBack, hardCallBack) {
     }
   }
 }
+
+/**
+ * @type {SortFunction}
+ */
+async function ShellSort(arr, callBack, hardCallBack) {
+  const len = arr.length
+  for(let gap = Math.floor(len / 2); gap > 0; gap = Math.floor(gap / 2)) {
+    for(let i = gap; i < len; i++) {
+      let j = i
+      const current = arr[i]
+      while(j - gap >= 0 && current < arr[j - gap]) {
+        arr[j] = arr[j - gap]
+        j = j - gap
+        await callBack()
+      }
+      arr[j] = current
+      await callBack()
+    }
+  }
+}
+
