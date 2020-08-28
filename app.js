@@ -43,6 +43,65 @@ function getRandomInt(min, max) {
   return Math.floor(Math.random() * (max - min + 1)) + min //含最大值，最小值
 }
 
+class WorkerFlow {
+  static __id = 0
+
+  constructor(fileName) {
+    this.worker = new Worker(fileName)
+    this.owned = false
+    this.id = WorkerFlow.__id++
+  }
+
+  async onmessage() {
+    return await (new Promise(resolve => {
+      this.worker.onmessage = e => resolve(e.data)
+    }))
+  }
+
+  /**
+   * @param {Transferable} transferable
+   * @returns {Promise<ArrayBuffer>}
+   */
+  async transferAndRetrieve(transferable) {
+    // this.owned = true
+    this.worker.postMessage(transferable, [transferable])
+    const res = await this.onmessage()
+    this.owned = false
+    return res
+  }
+}
+
+/**
+ * @type {WorkerFlow[]}
+ */
+const merge_workers = new Array(100).fill(1).map(() => new WorkerFlow('merge_worker.js'))
+
+/**
+ * @param {WorkerFlow[]} workers
+ */
+async function pick_one_worker(workers) {
+  let try_pick = workers.find(worker => !worker.owned)
+  while (!try_pick) {
+    // console.log('-'.repeat(10) + ' No Worker Available ' + '-'.repeat(10))
+    await new Promise(r => setTimeout(() => r(), 4))
+    try_pick = workers.find(worker => !worker.owned)
+  }
+  try_pick.owned = true
+  return try_pick
+}
+
+/**
+ * @param {WorkerFlow[]} workers
+ */
+function workerStatistic(workers) {
+  const st = workers.reduce((p, v) => {
+    if (v.owned) p[0] = p[0]+1
+    else p[1]=p[1]+1
+    return p
+  }, [0, 0])
+  return `idle: ${st[1]}, busy: ${st[0]}`
+}
+
 const fmt = new Intl.NumberFormat().format
 
 /**
@@ -73,6 +132,7 @@ const app = new Vue({
       ['bubble v2', BubbleSortV2],
       ['heap', HeapSort],
       ['merge', MergeSort],
+      ['merge multi-thread', MergeSortWorker],
       ['insert', InsertionSort],
       ['select', SelectionSort],
       ['shell', ShellSort],
@@ -135,9 +195,7 @@ const app = new Vue({
           this.steps++
           return new Promise(r => setTimeout(() => r(), this.rendInterval))
         },
-        () => {
-        this.steps++
-        }
+        () => this.steps++
       )
 
       this.isRunning = false
@@ -330,23 +388,24 @@ async function heapify(arr, heapSize, i, callBack, hardCallBack) {
 async function MergeSort(arr, callBack, hardCallBack) {
   const len = arr.length
   let left_s, left_e, right_s, right_e
-  let left_list = null
 
   for (let i = 1; i < len; i *= 2) {
-    let next = 0
     for (left_s = 0; left_s < len; left_s = right_e) {
-      next = left_s
+
+      let next = left_s
       left_e = right_s = left_s + i
       right_e = right_s + i
       hardCallBack()
-      if(right_e > len) {
-        right_e = len
-        hardCallBack()
-      }
-      left_list = arr.slice(left_s,left_e)
+
+      if (right_e > len) right_e = len
+
+      console.log(`i = ${i}, left_s = ${left_s}, left_e = ${left_e}, right_s = ${right_s}, right_e = ${right_e}`)
+
+      const left_list = arr.slice(left_s, left_e)
+
       let left_index = 0
-      const left_len = left_list.length
-      while(left_index < left_len) {
+
+      while (left_index < left_list.length) {
         if (right_s >= right_e || left_list[left_index] <= arr[right_s]) {
           arr[next++] = left_list[left_index++]
           await callBack()
@@ -357,6 +416,56 @@ async function MergeSort(arr, callBack, hardCallBack) {
         }
       }
     }
+  }
+}
+
+/**
+ * @type {SortFunction}
+ */
+async function MergeSortWorker(arr, callBack, hardCallBack) {
+  const len = arr.length
+  let left_s, left_e, right_s, right_e
+
+  for (let i = 1; i < len; i *= 2) {
+    /**
+     * @type {[(offset: number) => Promise<void>, number][]}
+     */
+    const task = []
+
+    for (left_s = 0; left_s < len; left_s = right_e) {
+
+      left_e = right_s = left_s + i
+      right_e = right_s + i
+      hardCallBack()
+
+      if (right_e > len) right_e = len
+
+      // console.log(`i = ${i}, left_s = ${left_s}, left_e = ${left_e}, right_s = ${right_s}, right_e = ${right_e}`)
+
+      const trs = new Uint16Array(right_e - left_s + 4)
+      trs.set([left_s, left_e, right_s, right_e])
+      trs.set(arr.slice(left_s, right_e), 4)
+
+      task.push([
+        async (offset) => {
+          // console.log('invoke, left_s =', offset)
+          const worker = await pick_one_worker(merge_workers)
+          console.log(workerStatistic(merge_workers))
+          // console.log('get worker')
+          const rawAns = await worker.transferAndRetrieve(trs.buffer)
+          console.log(workerStatistic(merge_workers))
+          // console.log('get rawAns')
+          const ans = new Uint16Array(rawAns)
+          // console.log('ans', ans)
+          arr.set(ans, offset)
+        },
+        left_s
+      ])
+    }
+
+    await Promise.all(task.map(t => t[0](t[1])))
+    // console.log('ok')
+    await callBack()
   }
 }
 
