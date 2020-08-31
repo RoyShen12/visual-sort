@@ -102,8 +102,8 @@ async function pick_one_worker(workers) {
  */
 function workerStatistic(workers) {
   const st = workers.reduce((p, v) => {
-    if (v.owned) p[0] = p[0]+1
-    else p[1] = p[1]+1
+    if (v.owned) p[0] = p[0] + 1
+    else p[1] = p[1] + 1
     return p
   }, [0, 0])
   return `idle: ${st[1]}, busy: ${st[0]}`
