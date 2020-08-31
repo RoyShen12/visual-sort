@@ -63,13 +63,13 @@ class WorkerFlow {
    * @returns {Promise<ArrayBuffer>}
    */
   async transferAndRetrieve(transferable) {
-    const len = transferable.byteLength
-    console.time(`Worker[${this.id}] payload: ${len} bytes`)
-    // this.owned = true
+    // const len = transferable.byteLength
+    // console.time(`Worker[${this.id}] payload: ${len} bytes`)
     this.worker.postMessage(transferable, [transferable])
     const res = await this.onmessage()
     this.owned = false
-    console.timeEnd(`Worker[${this.id}] payload: ${len} bytes`)
+    // console.timeEnd(`Worker[${this.id}] payload: ${len} bytes`)
+    // console.log(performance.now(), `Worker[${this.id}] released`)
     return res
   }
 }
@@ -86,12 +86,13 @@ const merge_workers = new Array(worker_count).fill(1).map(() => new WorkerFlow('
  */
 async function pick_one_worker(workers) {
   let try_pick = workers.find(worker => !worker.owned)
-  while (!try_pick) {
+  while (try_pick === undefined) {
     // console.log('-'.repeat(10) + ' No Worker Available ' + '-'.repeat(10))
     await new Promise(r => setTimeout(() => r(), 0))
     try_pick = workers.find(worker => !worker.owned)
   }
   try_pick.owned = true
+  // console.log(performance.now(), `Worker[${try_pick.id}] picked`)
   return try_pick
 }
 
@@ -107,6 +108,10 @@ function workerStatistic(workers) {
   }, [0, 0])
   return `idle: ${st[1]}, busy: ${st[0]}`
 }
+
+// setInterval(() => {
+//   if (merge_workers.find(worker => worker.owned)) console.log(workerStatistic(merge_workers))
+// }, 4)
 
 const fmt = new Intl.NumberFormat().format
 
@@ -204,26 +209,6 @@ const app = new Vue({
 
       this.drawData(data)
 
-      // try {
-      //   await Promise.race([
-      //     this.sortTypes.find(st => st[0] === this.usingSort)[1](
-      //       data,
-      //       async () => {
-      //         this.drawData(data)
-      //         this.steps++
-      //         return new Promise(r => setTimeout(() => r(), this.rendInterval))
-      //       },
-      //       count => count === undefined ? this.steps++ : this.steps += count
-      //     ),
-      //     new Promise(async (_res, rej) => {
-      //       while (!this.cancelToken) {
-      //         console.log('.')
-      //         await new Promise(r => setTimeout(() => r(), 200))
-      //       }
-      //       throw new Error('cancel token killed sorting !')
-      //     })
-      //   ])
-      // } catch (_e) {}
       try {
         await this.sortTypes.find(st => st[0] === this.usingSort)[1](
           data,
@@ -492,9 +477,7 @@ async function MergeSortWorker(arr, callBack, hardCallBack) {
 
     await Promise.all(task.map(async t => {
       const worker = await pick_one_worker(merge_workers)
-      // console.log(workerStatistic(merge_workers))
       const rawAns = await worker.transferAndRetrieve(t.buffer)
-      // console.log(workerStatistic(merge_workers))
       const ans = new Uint16Array(rawAns)
       const realAns = ans.slice(1)
       hardCallBack(ans[0])
