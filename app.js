@@ -91,6 +91,7 @@ async function pick_one_worker(workers) {
 }
 
 /**
+ * Debug show workers info
  * @param {WorkerFlow[]} workers
  */
 function workerStatistic(workers) {
@@ -109,6 +110,9 @@ const fmt = new Intl.NumberFormat().format
  */
 let ctx = null
 
+/**
+ * @type {number}
+ */
 let __w
 
 const dpi = window.devicePixelRatio
@@ -124,7 +128,7 @@ const app = new Vue({
     showCanvas: false,
 
     dataLengths: [50, 100, 200, 400, 800, 1200, 1600, 1900, 2000, 2500, 2700, 3400],
-    fpsRange: [3, 10, 30, 60, 90, 144, 200, 300, 500, 1000],
+    fpsRange: [3, 10, 30, 60, 90, 144, 200, 250, 'as fast as possible'],
 
     sortTypes: [
       ['quick', QuickSort],
@@ -151,7 +155,7 @@ const app = new Vue({
   },
   computed: {
     rendInterval() {
-      if (this.fps > 500) return 0
+      if (this.fps > 500 || typeof this.fps === 'string') return 0
       return 1000 / this.fps
     },
     humanSteps() {
@@ -195,7 +199,7 @@ const app = new Vue({
           this.steps++
           return new Promise(r => setTimeout(() => r(), this.rendInterval))
         },
-        () => this.steps++
+        count => count === undefined ? this.steps++ : this.steps += count
       )
 
       this.isRunning = false
@@ -399,7 +403,7 @@ async function MergeSort(arr, callBack, hardCallBack) {
 
       if (right_e > len) right_e = len
 
-      console.log(`i = ${i}, left_s = ${left_s}, left_e = ${left_e}, right_s = ${right_s}, right_e = ${right_e}`)
+      // console.log(`i = ${i}, left_s = ${left_s}, left_e = ${left_e}, right_s = ${right_s}, right_e = ${right_e}`)
 
       const left_list = arr.slice(left_s, left_e)
 
@@ -428,7 +432,7 @@ async function MergeSortWorker(arr, callBack, hardCallBack) {
 
   for (let i = 1; i < len; i *= 2) {
     /**
-     * @type {[(offset: number) => Promise<void>, number][]}
+     * @type {{ buffer: ArrayBuffer, offset: number }[]}
      */
     const task = []
 
@@ -446,24 +450,22 @@ async function MergeSortWorker(arr, callBack, hardCallBack) {
       trs.set([left_s, left_e, right_s, right_e])
       trs.set(arr.slice(left_s, right_e), 4)
 
-      task.push([
-        async (offset) => {
-          // console.log('invoke, left_s =', offset)
-          const worker = await pick_one_worker(merge_workers)
-          console.log(workerStatistic(merge_workers))
-          // console.log('get worker')
-          const rawAns = await worker.transferAndRetrieve(trs.buffer)
-          console.log(workerStatistic(merge_workers))
-          // console.log('get rawAns')
-          const ans = new Uint16Array(rawAns)
-          // console.log('ans', ans)
-          arr.set(ans, offset)
-        },
-        left_s
-      ])
+      task.push({
+        buffer: trs.buffer,
+        offset: left_s
+      })
     }
 
-    await Promise.all(task.map(t => t[0](t[1])))
+    await Promise.all(task.map(async t => {
+      const worker = await pick_one_worker(merge_workers)
+      console.log(workerStatistic(merge_workers))
+      const rawAns = await worker.transferAndRetrieve(t.buffer)
+      console.log(workerStatistic(merge_workers))
+      const ans = new Uint16Array(rawAns)
+      const realAns = ans.slice(1)
+      hardCallBack(ans[0])
+      arr.set(realAns, t.offset)
+    }))
     // console.log('ok')
     await callBack()
   }
