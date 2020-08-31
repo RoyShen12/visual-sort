@@ -43,6 +43,7 @@
           <el-select v-model="usingSort" size="small" style="width: 170px;" :disabled="isRunning">
             <el-option v-for="st in sortTypes" :value="st[0]" :label="st[0]" :key="st[0]"/>
           </el-select>
+          <span style="margin-left: 6px; font-size: 12px;" v-if="usingSort === 'merge multi-thread'">Worker: {{ worker_count }}</span>
         </el-col>
 
         <el-col :span="4">

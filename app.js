@@ -63,18 +63,23 @@ class WorkerFlow {
    * @returns {Promise<ArrayBuffer>}
    */
   async transferAndRetrieve(transferable) {
+    const len = transferable.byteLength
+    console.time(`Worker[${this.id}] payload: ${len} bytes`)
     // this.owned = true
     this.worker.postMessage(transferable, [transferable])
     const res = await this.onmessage()
     this.owned = false
+    console.timeEnd(`Worker[${this.id}] payload: ${len} bytes`)
     return res
   }
 }
 
+const worker_count = navigator.hardwareConcurrency || 8
+
 /**
  * @type {WorkerFlow[]}
  */
-const merge_workers = new Array(100).fill(1).map(() => new WorkerFlow('merge_worker.js'))
+const merge_workers = new Array(worker_count).fill(1).map(() => new WorkerFlow('merge_worker.js'))
 
 /**
  * @param {WorkerFlow[]} workers
@@ -125,6 +130,7 @@ const nomalColor = 'rgba(42, 62, 52, 1)'
 const app = new Vue({
   el: '#app',
   data: {
+    worker_count,
     showCanvas: false,
 
     dataLengths: [50, 100, 200, 400, 800, 1200, 1600, 1900, 2000, 2500, 2700, 3400, 1e4, 1e5, 1e6, 1e7],
@@ -164,12 +170,9 @@ const app = new Vue({
     }
   },
   methods: {
-    async terminate() {
+    terminate() {
       this.cancelToken = true
-      await this.$nextTick()
       this.showCanvas = false
-      this.isRunning = false
-      this.steps = 0
     },
     async startSort() {
       this.cancelToken = false
@@ -197,21 +200,45 @@ const app = new Vue({
 
       __w = data.length < width ? Math.round(width / data.length) : width / data.length
 
-      console.log(data)
+      // console.log(data)
 
       this.drawData(data)
 
-      await this.sortTypes.find(st => st[0] === this.usingSort)[1](
-        data,
-        async () => {
-          this.drawData(data)
-          this.steps++
-          return new Promise(r => setTimeout(() => r(this.cancelToken), this.rendInterval))
-        },
-        count => count === undefined ? this.steps++ : this.steps += count
-      )
+      // try {
+      //   await Promise.race([
+      //     this.sortTypes.find(st => st[0] === this.usingSort)[1](
+      //       data,
+      //       async () => {
+      //         this.drawData(data)
+      //         this.steps++
+      //         return new Promise(r => setTimeout(() => r(), this.rendInterval))
+      //       },
+      //       count => count === undefined ? this.steps++ : this.steps += count
+      //     ),
+      //     new Promise(async (_res, rej) => {
+      //       while (!this.cancelToken) {
+      //         console.log('.')
+      //         await new Promise(r => setTimeout(() => r(), 200))
+      //       }
+      //       throw new Error('cancel token killed sorting !')
+      //     })
+      //   ])
+      // } catch (_e) {}
+      try {
+        await this.sortTypes.find(st => st[0] === this.usingSort)[1](
+          data,
+          async () => {
+            if (this.cancelToken) throw new Error('cancel token killed sorting !')
+            this.drawData(data)
+            this.steps++
+            return new Promise(r => setTimeout(() => r(), this.rendInterval))
+          },
+          count => count === undefined ? this.steps++ : this.steps += count
+        ) 
+      } catch (_e) {}
 
       this.isRunning = false
+      this.steps = 0
     },
     drawData(data) {
       ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height)
@@ -293,7 +320,7 @@ async function QuickSort(arr, callBack, hardCallBack) {
       arr[j] = arr[i]
       arr[i] = temp
       flag = i
-      if (await callBack()) return
+      await callBack()
     }
 
     hardCallBack()
@@ -312,7 +339,7 @@ async function BubbleSort(array, callBack, hardCallBack) {
       hardCallBack()
       if (array[j]> array[j+1]) {
         [array[j], array[j+1]] = [array[j+1], array[j]]
-        if (await callBack()) return
+        await callBack()
       }
     }  
   } 
@@ -330,7 +357,7 @@ async function BubbleSortV2(array, callBack, hardCallBack) {
       hardCallBack()
       if (array[j] > array[j+1]) {
         [array[j], array[j+1]] = [array[j+1], array[j]]
-        if (await callBack()) return
+        await callBack()
         swapped = false
       }
     }
@@ -351,7 +378,7 @@ async function HeapSort(arr, callBack, hardCallBack) {
     const temp = arr[0]
     arr[0] = arr[heapSize-1]
     arr[heapSize-1] = temp
-    if (await callBack()) return
+    await callBack()
     heapSize--
     if (heapSize>1) {
       await heapify(arr, heapSize, 0, callBack, hardCallBack)
@@ -390,7 +417,7 @@ async function heapify(arr, heapSize, i, callBack, hardCallBack) {
     const temp = arr[i]
     arr[i] = arr[biggestValueIndex]
     arr[biggestValueIndex] = temp
-    if (await callBack()) return
+    await callBack()
     await heapify(arr, heapSize, biggestValueIndex, callBack, hardCallBack)
   }
 }
@@ -419,11 +446,11 @@ async function MergeSort(arr, callBack, hardCallBack) {
       while (left_index < left_list.length) {
         if (right_s >= right_e || left_list[left_index] <= arr[right_s]) {
           arr[next++] = left_list[left_index++]
-          if (await callBack()) return
+          await callBack()
         }
         else {
           arr[next++] = arr[right_s++]
-          if (await callBack()) return
+          await callBack()
         }
       }
     }
@@ -474,7 +501,7 @@ async function MergeSortWorker(arr, callBack, hardCallBack) {
       arr.set(realAns, t.offset)
     }))
     // console.log('ok')
-    if (await callBack()) return
+    await callBack()
   }
 }
 
@@ -488,11 +515,11 @@ async function InsertionSort(array, callBack, hardCallBack) {
     let j = i - 1
     while (j >= 0 && array[j] > temp) {
       array[j+1] = array [j]
-      if (await callBack()) return
+      await callBack()
       j--
     }
     array[j+1] = temp
-    if (await callBack()) return
+    await callBack()
   }
 }
 
@@ -512,7 +539,7 @@ async function SelectionSort(array, callBack, hardCallBack) {
     }
     if (minIndex != i) {
       [array[minIndex], array[i]] = [array[i], array[minIndex]]
-      if (await callBack()) return
+      await callBack()
     }
   }
 }
@@ -529,10 +556,10 @@ async function ShellSort(arr, callBack, hardCallBack) {
       while(j - gap >= 0 && current < arr[j - gap]) {
         arr[j] = arr[j - gap]
         j = j - gap
-        if (await callBack()) return
+        await callBack()
       }
       arr[j] = current
-      if (await callBack()) return
+      await callBack()
     }
   }
 }
@@ -547,7 +574,7 @@ async function MonkeySort(arr, callBack, hardCallBack) {
       const tmp = arr[i]
       arr[i] = arr[rIndex]
       arr[rIndex] = tmp
-      if (await callBack()) return
+      await callBack()
     }
   } while (!isSorted(arr))
 }
