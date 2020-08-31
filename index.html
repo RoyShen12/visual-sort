@@ -45,7 +45,7 @@
           </el-select>
         </el-col>
 
-        <el-col :span="5">
+        <el-col :span="4">
           <span style="margin-right: 12px;">FPS:</span>
           <el-select v-model="fps" size="small" style="width: 120px;">
             <el-option v-for="f in fpsRange" :value="f" :label="f" :key="f" />
@@ -61,7 +61,7 @@
           <el-button size="mini" @click="next(dataLengths, 'length')">+</el-button>
         </el-col>
 
-        <el-col :span="5">
+        <el-col :span="4">
           <span style="margin-right: 12px;">Draw As:</span>
           <el-switch
             v-model="barOrPoint"
@@ -70,8 +70,9 @@
           </el-switch>
         </el-col>
 
-        <el-col :span="2">
+        <el-col :span="4">
           <el-button type="primary" @click="startSort" :disabled="isRunning">Start Sort</el-button>
+          <el-button type="danger" @click="terminate" :disabled="!isRunning">Terminate</el-button>
         </el-col>
 
         <el-col :span="2">
