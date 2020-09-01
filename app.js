@@ -132,6 +132,8 @@ const [logicHeight, logicWidth] = [height * dpi, width * dpi]
 const okColor = 'rgba(103, 194, 58, 1)'
 const nomalColor = 'rgba(42, 62, 52, 1)'
 
+let __steps = 0
+
 const app = new Vue({
   el: '#app',
   data: {
@@ -178,11 +180,14 @@ const app = new Vue({
     terminate() {
       this.cancelToken = true
       this.showCanvas = false
+      __steps = 0
+      this.loadStep()
     },
     async startSort() {
       this.cancelToken = false
       this.isRunning = true
-      this.steps = 0
+      __steps = 0
+      this.loadStep()
       /**
        * @type {HTMLCanvasElement}
        */
@@ -215,16 +220,22 @@ const app = new Vue({
           async () => {
             if (this.cancelToken) throw new Error('cancel token killed sorting !')
             this.drawData(data)
-            this.steps++
+            __steps++
+            this.loadStep()
             return new Promise(r => setTimeout(() => r(), this.rendInterval))
           },
-          count => count === undefined ? this.steps++ : this.steps += count
-        ) 
+          count => {
+            count === undefined ? __steps++ : __steps += count
+            this.loadStep()
+          }
+        )
       } catch (_e) {}
 
       this.isRunning = false
-      this.steps = 0
     },
+    loadStep: _.throttle(function () {
+      this.steps = __steps
+    }, 100),
     drawData(data) {
       ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height)
 
