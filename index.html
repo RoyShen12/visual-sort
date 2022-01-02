@@ -28,10 +28,11 @@
       }
     </style>
     <title>Visual Sort</title>
-    <script src="https://cdn.jsdelivr.net/npm/vue"></script>
-    <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/lodash@4.17.20/lodash.min.js"></script>
-    <link rel="stylesheet" href="https://unpkg.com/element-ui/lib/theme-chalk/index.css" />
-    <script src="https://unpkg.com/element-ui/lib/index.js"></script>
+    <!-- <script src="https://cdn.jsdelivr.net/npm/vue"></script> -->
+    <script src="https://unpkg.com/vue@next"></script>
+    <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/lodash@4.17.21/lodash.min.js"></script>
+    <link rel="stylesheet" href="//unpkg.com/element-plus/dist/index.css" />
+    <script src="//unpkg.com/element-plus"></script>
   </head>
 
   <body>
@@ -43,7 +44,7 @@
           <el-select v-model="usingSort" size="small" style="width: 170px;" :disabled="isRunning">
             <el-option v-for="st in sortTypes" :value="st[0]" :label="st[0]" :key="st[0]"/>
           </el-select>
-          <span style="margin-left: 6px; font-size: 12px;" v-if="usingSort === 'merge multi-thread'">Worker: {{ worker_count }}</span>
+          <span style="margin-left: 6px; font-size: 12px;" v-if="usingSort === 'merge multi-thread'">Worker: {{ workerCount }}</span>
         </el-col>
 
         <el-col :span="4">
@@ -51,7 +52,7 @@
           <el-select v-model="fps" size="small" style="width: 120px;">
             <el-option v-for="f in fpsRange" :value="f" :label="f" :key="f" />
           </el-select>
-          <el-button size="mini" @click="next(fpsRange, 'fps')">+</el-button>
+          <el-button size="small" @click="next(fpsRange, 'fps')">+</el-button>
         </el-col>
 
         <el-col :span="5">
@@ -59,7 +60,7 @@
           <el-select v-model="length" size="small" style="width: 120px;" :disabled="isRunning">
             <el-option v-for="len in dataLengths" :value="len" :label="len" :key="len" />
           </el-select>
-          <el-button size="mini" @click="next(dataLengths, 'length')">+</el-button>
+          <el-button size="small" @click="next(dataLengths, 'length')">+</el-button>
         </el-col>
 
         <el-col :span="4">

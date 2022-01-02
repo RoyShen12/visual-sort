@@ -3,18 +3,18 @@ function standardNormalDistribution() {
    * @type {number[]}
    */
   const numberPool = []
-  return function () {
+  return (function () {
     if (numberPool.length > 0) {
       return numberPool.pop()
-    }
-    else {
-      const u = Math.random(), v = Math.random()
+    } else {
+      const u = Math.random(),
+        v = Math.random()
       const p = Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v)
       const q = Math.sqrt(-2 * Math.log(u)) * Math.sin(2 * Math.PI * v)
       numberPool.push(q)
       return p
     }
-  }()
+  })()
 }
 
 /**
@@ -53,9 +53,9 @@ class WorkerFlow {
   }
 
   async onmessage() {
-    return await (new Promise(resolve => {
+    return await new Promise(resolve => {
       this.worker.onmessage = e => resolve(e.data)
-    }))
+    })
   }
 
   /**
@@ -74,6 +74,9 @@ class WorkerFlow {
   }
 }
 
+/**
+ * @type {number}
+ */
 const worker_count = navigator.hardwareConcurrency || 8
 
 /**
@@ -101,11 +104,14 @@ async function pick_one_worker(workers) {
  * @param {WorkerFlow[]} workers
  */
 function workerStatistic(workers) {
-  const st = workers.reduce((p, v) => {
-    if (v.owned) p[0] = p[0] + 1
-    else p[1] = p[1] + 1
-    return p
-  }, [0, 0])
+  const st = workers.reduce(
+    (p, v) => {
+      if (v.owned) p[0] = p[0] + 1
+      else p[1] = p[1] + 1
+      return p
+    },
+    [0, 0]
+  )
   return `idle: ${st[1]}, busy: ${st[0]}`
 }
 
@@ -126,24 +132,23 @@ let ctx = null
 let __w
 
 const dpi = window.devicePixelRatio
-const [height, width] = [Math.round(innerHeight * .8 / 100) * 100, Math.floor(innerWidth / 100) * 100]
+const [height, width] = [Math.round((innerHeight * 0.8) / 100) * 100, Math.floor(innerWidth / 100) * 100]
 const [logicHeight, logicWidth] = [height * dpi, width * dpi]
 
 const okColor = 'rgba(103, 194, 58, 1)'
-const nomalColor = 'rgba(42, 62, 52, 1)'
+const normalColor = 'rgba(42, 62, 52, 1)'
 
 let __steps = 0
 
-const app = new Vue({
-  el: '#app',
-  data: {
-    worker_count,
-    showCanvas: false,
+const { createApp, ref, computed } = Vue
 
-    dataLengths: [50, 100, 200, 400, 800, 1200, 1600, 1900, 2000, 2500, 2700, 3400, 1e4, 1e5, 1e6, 1e7],
-    fpsRange: [3, 10, 30, 60, 90, 144, 200, 250, 'as fast as possible'],
-
-    sortTypes: [
+const app = createApp({
+  setup() {
+    const workerCount = ref(worker_count)
+    const showCanvas = ref(false)
+    const dataLengths = ref([50, 100, 200, 400, 800, 1200, 1600, 1900, 2000, 2500, 2700, 3400, 1e4, 1e5, 1e6, 1e7])
+    const fpsRange = ref([3, 10, 30, 60, 90, 144, 200, 250, 'as fast as possible'])
+    const sortTypes = ref([
       ['quick', QuickSort],
       ['bubble', BubbleSort],
       ['bubble v2', BubbleSortV2],
@@ -153,45 +158,48 @@ const app = new Vue({
       ['insert', InsertionSort],
       ['select', SelectionSort],
       ['shell', ShellSort],
-      ['monkey', MonkeySort]
-    ],
-    usingSort: 'quick',
+      ['monkey', MonkeySort],
+    ])
 
-    fps: 60,
+    const usingSort = ref('quick')
 
-    length: 400,
+    const fps = ref(60)
 
-    steps: 0,
-    isRunning: false,
-    cancelToken: false,
+    const length = ref(400)
 
-    barOrPoint: true
-  },
-  computed: {
-    rendInterval() {
-      if (this.fps > 500 || typeof this.fps === 'string') return 0
-      return 1000 / this.fps
-    },
-    humanSteps() {
-      return fmt(this.steps)
+    const steps = ref(0)
+    const isRunning = ref(false)
+    const cancelToken = ref(false)
+
+    const barOrPoint = ref(true)
+
+    const rendInterval = computed(() => {
+      if (fps.value > 500 || typeof fps.value === 'string') return 0
+      return 1000 / fps.value
+    })
+
+    const humanSteps = computed(() => fmt(steps.value))
+
+    const loadStep = _.throttle(() => {
+      steps.value = __steps
+    }, 100)
+
+    const terminate = () => {
+      cancelToken.value = true
+      showCanvas.value = false
+      __steps = 0
+      loadStep()
     }
-  },
-  methods: {
-    terminate() {
-      this.cancelToken = true
-      this.showCanvas = false
+
+    const startSort = async () => {
+      cancelToken.value = false
+      isRunning.value = true
       __steps = 0
-      this.loadStep()
-    },
-    async startSort() {
-      this.cancelToken = false
-      this.isRunning = true
-      __steps = 0
-      this.loadStep()
+      loadStep()
       /**
        * @type {HTMLCanvasElement}
        */
-      const canvasEle = this.$refs.cvs
+      const canvasEle = $refs.cvs
 
       canvasEle.style.width = width + 'px'
       canvasEle.style.height = height + 'px'
@@ -201,42 +209,40 @@ const app = new Vue({
       ctx = canvasEle.getContext('2d')
       if (dpi > 1) ctx.scale(dpi, dpi)
 
-      ctx.fillStyle = nomalColor
+      ctx.fillStyle = normalColor
 
-      this.showCanvas = true
+      showCanvas.value = true
 
-      const data = new Uint16Array(new Array(this.length).fill(1).map(() => _.random(0, height, false)))
-      // const data = new Array(this.length).fill(1).map(() => NormalDistribution(0, height / 2))
+      const data = new Uint16Array(new Array(length.value).fill(1).map(() => _.random(0, height, false)))
+      // const data = new Array(length.value).fill(1).map(() => NormalDistribution(0, height / 2))
 
       __w = data.length < width ? Math.round(width / data.length) : width / data.length
 
       // console.log(data)
 
-      this.drawData(data)
+      drawData(data)
 
       try {
-        await this.sortTypes.find(st => st[0] === this.usingSort)[1](
+        await sortTypes.value.find(st => st[0] === usingSort.value)[1](
           data,
           async () => {
-            if (this.cancelToken) throw new Error('cancel token killed sorting !')
-            this.drawData(data)
+            if (cancelToken.value) throw new Error('cancel token killed sorting !')
+            drawData(data)
             __steps++
-            this.loadStep()
-            return new Promise(r => setTimeout(() => r(), this.rendInterval))
+            loadStep()
+            return new Promise(r => setTimeout(() => r(), rendInterval.value))
           },
           count => {
-            count === undefined ? __steps++ : __steps += count
-            this.loadStep()
+            count === undefined ? __steps++ : (__steps += count)
+            loadStep()
           }
         )
       } catch (_e) {}
 
-      this.isRunning = false
-    },
-    loadStep: _.throttle(function () {
-      this.steps = __steps
-    }, 100),
-    drawData(data) {
+      isRunning.value = false
+    }
+
+    const drawData = data => {
       ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height)
 
       for (let i = 0; i < data.length; i++) {
@@ -245,37 +251,52 @@ const app = new Vue({
         if (data[i - 1] !== undefined) {
           if (data[i - 1] <= data[i]) {
             ctx.fillStyle = okColor
+          } else {
+            ctx.fillStyle = normalColor
           }
-          else {
-            ctx.fillStyle = nomalColor
-          }
-        }
-        else if (data[i] >= data[i + 1]) {
+        } else if (data[i] >= data[i + 1]) {
           ctx.fillStyle = okColor
-        }
-        else {
-          ctx.fillStyle = nomalColor
+        } else {
+          ctx.fillStyle = normalColor
         }
 
-        this.barOrPoint ?
-          ctx.fillRect(i * __w, height - __h, __w, __h) :
-          ctx.fillRect(i * __w, height - __h, __w, __w)
+        barOrPoint.value ? ctx.fillRect(i * __w, height - __h, __w, __h) : ctx.fillRect(i * __w, height - __h, __w, __w)
 
         // if (i % 3 === 0) ctx.strokeText(data[i], i * __w, 30)
       }
-    },
-    next(arr, v) {
-      let i = arr.indexOf(this[v])
-      const len = arr.length
-      this[v] = arr[i === len - 1 ? 0 : (i + 1)]
+    }
+
+    return {
+      workerCount,
+      showCanvas,
+      dataLengths,
+      fpsRange,
+      sortTypes,
+      usingSort,
+      fps,
+      length,
+      steps,
+      isRunning,
+      cancelToken,
+      barOrPoint,
+      rendInterval,
+      humanSteps,
+      loadStep,
+      terminate,
+      startSort,
+      drawData,
     }
   },
-  created() {},
-  mounted() {},
-  watch: {
-    // length(v) {}
-  }
 })
+
+app.use(ElementPlus.ElRow)
+app.use(ElementPlus.ElCol)
+app.use(ElementPlus.ElOption)
+app.use(ElementPlus.ElSelect)
+app.use(ElementPlus.ElButton)
+app.use(ElementPlus.ElSwitch)
+
+app.mount('#app')
 
 /// Sort Functions
 /**
@@ -286,7 +307,8 @@ const app = new Vue({
  * @type {SortFunction}
  */
 async function QuickSort(arr, callBack, hardCallBack) {
-  const left = 0, right = arr.length - 1
+  const left = 0,
+    right = arr.length - 1
   const list = [[left, right]]
 
   while (list.length > 0) {
@@ -295,10 +317,12 @@ async function QuickSort(arr, callBack, hardCallBack) {
     hardCallBack()
     if (now[0] >= now[1]) continue
 
-    let i = now[0], j = now[1], flag = i
+    let i = now[0],
+      j = now[1],
+      flag = i
 
-    while(i < j) {
-      while(arr[j] >= arr[flag] && j > flag) {
+    while (i < j) {
+      while (arr[j] >= arr[flag] && j > flag) {
         j--
         hardCallBack()
       }
@@ -306,7 +330,7 @@ async function QuickSort(arr, callBack, hardCallBack) {
       hardCallBack()
       if (i >= j) break
 
-      while(arr[i] <= arr[flag] && i < j) {
+      while (arr[i] <= arr[flag] && i < j) {
         i++
         hardCallBack()
       }
@@ -331,14 +355,14 @@ async function QuickSort(arr, callBack, hardCallBack) {
 async function BubbleSort(array, callBack, hardCallBack) {
   let len = array.length
   for (let i = 0; i < len; i++) {
-    for (let j = 0; j < len-i-1; j++) {
+    for (let j = 0; j < len - i - 1; j++) {
       hardCallBack()
-      if (array[j]> array[j+1]) {
-        [array[j], array[j+1]] = [array[j+1], array[j]]
+      if (array[j] > array[j + 1]) {
+        ;[array[j], array[j + 1]] = [array[j + 1], array[j]]
         await callBack()
       }
-    }  
-  } 
+    }
+  }
 }
 
 /**
@@ -351,8 +375,8 @@ async function BubbleSortV2(array, callBack, hardCallBack) {
     swapped = true
     for (let j = 0; j < array.length - i - 1; j++) {
       hardCallBack()
-      if (array[j] > array[j+1]) {
-        [array[j], array[j+1]] = [array[j+1], array[j]]
+      if (array[j] > array[j + 1]) {
+        ;[array[j], array[j + 1]] = [array[j + 1], array[j]]
         await callBack()
         swapped = false
       }
@@ -370,13 +394,13 @@ async function HeapSort(arr, callBack, hardCallBack) {
   let heapSize = arr.length
   await buildHeap(arr, callBack, hardCallBack)
 
-  while(heapSize > 1) { 
+  while (heapSize > 1) {
     const temp = arr[0]
-    arr[0] = arr[heapSize-1]
-    arr[heapSize-1] = temp
+    arr[0] = arr[heapSize - 1]
+    arr[heapSize - 1] = temp
     await callBack()
     heapSize--
-    if (heapSize>1) {
+    if (heapSize > 1) {
       await heapify(arr, heapSize, 0, callBack, hardCallBack)
     }
   }
@@ -427,7 +451,6 @@ async function MergeSort(arr, callBack, hardCallBack) {
 
   for (let i = 1; i < len; i *= 2) {
     for (left_s = 0; left_s < len; left_s = right_e) {
-
       let next = left_s
       left_e = right_s = left_s + i
       right_e = right_s + i
@@ -443,8 +466,7 @@ async function MergeSort(arr, callBack, hardCallBack) {
         if (right_s >= right_e || left_list[left_index] <= arr[right_s]) {
           arr[next++] = left_list[left_index++]
           await callBack()
-        }
-        else {
+        } else {
           arr[next++] = arr[right_s++]
           await callBack()
         }
@@ -467,7 +489,6 @@ async function MergeSortWorker(arr, callBack, hardCallBack) {
     const task = []
 
     for (left_s = 0; left_s < len; left_s = right_e) {
-
       left_e = right_s = left_s + i
       right_e = right_s + i
       hardCallBack()
@@ -482,18 +503,20 @@ async function MergeSortWorker(arr, callBack, hardCallBack) {
 
       task.push({
         buffer: trs.buffer,
-        offset: left_s
+        offset: left_s,
       })
     }
 
-    await Promise.all(task.map(async t => {
-      const worker = await pick_one_worker(merge_workers)
-      const rawAns = await worker.transferAndRetrieve(t.buffer)
-      const ans = new Uint16Array(rawAns)
-      const realAns = ans.slice(1)
-      hardCallBack(ans[0])
-      arr.set(realAns, t.offset)
-    }))
+    await Promise.all(
+      task.map(async t => {
+        const worker = await pick_one_worker(merge_workers)
+        const rawAns = await worker.transferAndRetrieve(t.buffer)
+        const ans = new Uint16Array(rawAns)
+        const realAns = ans.slice(1)
+        hardCallBack(ans[0])
+        arr.set(realAns, t.offset)
+      })
+    )
     // console.log('ok')
     await callBack()
   }
@@ -508,11 +531,11 @@ async function InsertionSort(array, callBack, hardCallBack) {
     let temp = array[i]
     let j = i - 1
     while (j >= 0 && array[j] > temp) {
-      array[j+1] = array [j]
+      array[j + 1] = array[j]
       await callBack()
       j--
     }
-    array[j+1] = temp
+    array[j + 1] = temp
     await callBack()
   }
 }
@@ -532,7 +555,7 @@ async function SelectionSort(array, callBack, hardCallBack) {
       }
     }
     if (minIndex != i) {
-      [array[minIndex], array[i]] = [array[i], array[minIndex]]
+      ;[array[minIndex], array[i]] = [array[i], array[minIndex]]
       await callBack()
     }
   }
@@ -543,11 +566,11 @@ async function SelectionSort(array, callBack, hardCallBack) {
  */
 async function ShellSort(arr, callBack, hardCallBack) {
   const len = arr.length
-  for(let gap = Math.floor(len / 2); gap > 0; gap = Math.floor(gap / 2)) {
-    for(let i = gap; i < len; i++) {
+  for (let gap = Math.floor(len / 2); gap > 0; gap = Math.floor(gap / 2)) {
+    for (let i = gap; i < len; i++) {
       let j = i
       const current = arr[i]
-      while(j - gap >= 0 && current < arr[j - gap]) {
+      while (j - gap >= 0 && current < arr[j - gap]) {
         arr[j] = arr[j - gap]
         j = j - gap
         await callBack()
