@@ -146,8 +146,8 @@ const app = createApp({
   setup() {
     const workerCount = ref(worker_count)
     const showCanvas = ref(false)
-    const dataLengths = reactive([50, 100, 200, 400, 800, 1200, 1600, 1900, 2000, 2500, 2700, 3400, 1e4, 1e5, 1e6, 1e7])
-    const fpsRange = reactive([3, 10, 30, 60, 90, 144, 200, 250, 'as fast as possible'])
+    const dataLengths = reactive([10, 50, 100, 200, 400, 800, 1200, 1600, 1900, 2000, 2500, 2700, 3400, 1e4, 1e5, 1e6, 1e7])
+    const fpsRange = reactive([3, 10, 30, 60, 90, 144, 200, 250, 500, 'as fast as possible'])
     const sortTypes = reactive([
       ['quick', QuickSort],
       ['bubble', BubbleSort],
