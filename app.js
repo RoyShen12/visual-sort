@@ -194,8 +194,11 @@ const app = createApp({
     const startSort = async () => {
       cancelToken.value = false
       isRunning.value = true
+
       __steps = 0
+
       loadStep()
+
       /**
        * @type {HTMLCanvasElement}
        */
@@ -222,22 +225,28 @@ const app = createApp({
 
       drawData(data)
 
+      // console.log(sortTypes)
+
       try {
-        await sortTypes.value.find(st => st[0] === usingSort.value)[1](
+        await sortTypes.find(st => st[0] === usingSort.value)[1](
           data,
           async () => {
             if (cancelToken.value) throw new Error('cancel token killed sorting !')
+
             drawData(data)
             __steps++
             loadStep()
-            return new Promise(r => setTimeout(() => r(), rendInterval.value))
+
+            return new Promise(r => setTimeout(r, rendInterval.value))
           },
           count => {
             count === undefined ? __steps++ : (__steps += count)
             loadStep()
           }
         )
-      } catch (_e) {}
+      } catch (_e) {
+        console.error(_e)
+      }
 
       isRunning.value = false
     }
@@ -287,6 +296,13 @@ const app = createApp({
       drawData,
     }
   },
+  methods: {
+    next(arr, v) {
+      let i = arr.indexOf(this[v])
+      const len = arr.length
+      this[v] = arr[i === len - 1 ? 0 : (i + 1)]
+    }
+  }
 })
 
 app.use(ElementPlus.ElRow)
