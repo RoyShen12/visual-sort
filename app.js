@@ -199,7 +199,7 @@ const app = createApp({
       /**
        * @type {HTMLCanvasElement}
        */
-      const canvasEle = $refs.cvs
+      const canvasEle = document.getElementById('cvs')
 
       canvasEle.style.width = width + 'px'
       canvasEle.style.height = height + 'px'
